@@ -33,7 +33,7 @@ export default function Home() {
       </SafeAreaView>
 
       <View style={styles.content}>
-        <Text style={styles.welcomeText}>Logged in as: {userEmail}</Text>
+        <Text style={styles.welcomeText}>User Logged in as: {userEmail}</Text>
         
         <TouchableOpacity
           style={styles.logoutButton}
