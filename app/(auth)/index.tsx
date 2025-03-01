@@ -109,7 +109,7 @@ export default function Index() {
           style={styles.linkButton}
           onPress={() => router.push('/forgot_pass')}
         >
-          <Text style={styles.linkText}>Forgot Password?</Text>
+          <Text style={styles.linkText}>Forgot Password ?</Text>
         </TouchableOpacity>
       </View>
     </View>
