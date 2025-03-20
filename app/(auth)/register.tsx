@@ -34,17 +34,17 @@ export default function Register() {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
-    // Mobile validation
     if (!validateMobile(form.mobile)) {
       Alert.alert('Error', 'Mobile number must be 10 digits');
       return;
     }
-    // Email validation
     if (!validateEmail(form.email)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-    // Adding In database
+
+    setIsLoading(true); // Start loading
+
     try {
       // Step 1: Create user in Supabase Auth
       const { data: { user }, error: authError } = await supabase.auth.signUp({
@@ -52,7 +52,11 @@ export default function Register() {
         password: form.password,
       });
 
-      const { error } = await supabase
+      if (authError) throw authError;
+      if (!user) throw new Error('User registration failed');
+
+      // Step 2: Insert user profile into public.users table
+      const { error: profileError } = await supabase
         .from('users')
         .insert({
           full_name: form.fullName,
@@ -62,20 +66,15 @@ export default function Register() {
           password_hash: form.password // Never store plain text passwords in production!
         });
 
-      if (error) throw error;
-      Alert.alert('Success', 'Registration successful! Login Now');
+      if (profileError) throw profileError;
+
+      Alert.alert('Success', 'Registration successful! Please check your email for confirmation.');
       router.back();
-    }
-    catch (error) {
-      let errorMessage = 'Registration failed';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null && 'message' in error) {
-        errorMessage = String(error.message);
-      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       Alert.alert('Error', errorMessage);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Stop loading
     }
   };
 
