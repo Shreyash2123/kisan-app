@@ -111,6 +111,13 @@ export default function Index() {
         >
           <Text style={styles.linkText}>Forgot Password ?</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => router.push('/admin')}
+        >
+          <Text style={styles.linkText}>Admin Login</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
