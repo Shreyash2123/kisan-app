@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Text, TextInput, TouchableOpacity, View, SafeAreaView, StyleSheet, ActivityIndicator } from 'react-native';
+import { Alert, Text, TextInput, TouchableOpacity, View, SafeAreaView, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
@@ -97,58 +97,62 @@ export default function Register() {
         </View>
       </SafeAreaView>
 
-      <View style={styles.formContainer}>
-        <TextInput
-          placeholder="Full Name"
-          value={form.fullName}
-          onChangeText={(text) => setForm({ ...form, fullName: text })}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Mobile Number"
-          value={form.mobile}
-          onChangeText={(text) => setForm({ ...form, mobile: text })}
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-        {/* New Address Field */}
-        <TextInput
-          placeholder="Address"
-          value={form.address}
-          onChangeText={(text) => setForm({ ...form, address: text })}
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-        />
-        <TextInput
-          placeholder="Email"
-          value={form.email}
-          onChangeText={(text) => setForm({ ...form, email: text })}
-          style={styles.input}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput
-          placeholder="Password"
-          value={form.password}
-          onChangeText={(text) => setForm({ ...form, password: text })}
-          style={styles.input}
-          secureTextEntry
-        />
-        <TextInput
-          placeholder="Confirm Password"
-          value={form.confirmPassword}
-          onChangeText={(text) => setForm({ ...form, confirmPassword: text })}
-          style={styles.input}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          onPress={handleRegister}
-          style={styles.registerButton}
-        >
-          <Text style={styles.buttonText}>Register Account</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.formContainer}>
+          <TextInput
+            placeholder="Full Name"
+            value={form.fullName}
+            onChangeText={(text) => setForm({ ...form, fullName: text })}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Mobile Number"
+            value={form.mobile}
+            onChangeText={(text) => setForm({ ...form, mobile: text })}
+            style={styles.input}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            placeholder="Address"
+            value={form.address}
+            onChangeText={(text) => setForm({ ...form, address: text })}
+            style={[styles.input, styles.addressInput]}
+            multiline
+            numberOfLines={3}
+          />
+          <TextInput
+            placeholder="Email"
+            value={form.email}
+            onChangeText={(text) => setForm({ ...form, email: text })}
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput
+            placeholder="Password"
+            value={form.password}
+            onChangeText={(text) => setForm({ ...form, password: text })}
+            style={styles.input}
+            secureTextEntry
+          />
+          <TextInput
+            placeholder="Confirm Password"
+            value={form.confirmPassword}
+            onChangeText={(text) => setForm({ ...form, confirmPassword: text })}
+            style={styles.input}
+            secureTextEntry
+          />
+          <TouchableOpacity
+            onPress={handleRegister}
+            style={styles.registerButton}
+          >
+            <Text style={styles.buttonText}>Register Account</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -184,10 +188,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   formContainer: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   input: {
     width: '100%',
@@ -197,6 +204,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderColor: '#ddd',
     backgroundColor: '#f8f9fa',
+    fontSize: 16,
+  },
+  addressInput: {
+    height: 100,
+    textAlignVertical: 'top',
   },
   registerButton: {
     width: '100%',
@@ -222,8 +234,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#333',
-  },
-  disabledButton: {
-    backgroundColor: '#bdc3c7',
   },
 });
