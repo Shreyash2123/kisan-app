@@ -39,6 +39,12 @@ export default function AdminLogin() {
 
       <SafeAreaView style={styles.topBar}>
         <View style={styles.navContainer}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.replace('/')}
+          >
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
           <Text style={styles.appName}>Kisan App - Admin Portal</Text>
         </View>
       </SafeAreaView>
@@ -97,14 +103,28 @@ const styles = StyleSheet.create({
   },
   navContainer: {
     height: 60,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 15,
+    zIndex: 1,
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 32,
+    lineHeight: 32,
   },
   appName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    position: 'absolute',
+    width: '100%',
+    textAlign: 'center',
   },
   formContainer: {
     flex: 1,

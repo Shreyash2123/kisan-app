@@ -71,6 +71,12 @@ export default function Index() {
       <SafeAreaView style={styles.topBar}>
         <View style={styles.navContainer}>
           <Text style={styles.appName}>Kisan App</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/admin')}
+            style={styles.adminButton}
+          >
+            <Text style={styles.adminButtonText}>Admin Login</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -98,26 +104,29 @@ export default function Index() {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
 
+        {/* Vendor Login/Register Button */}
         <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/register')}
+          style={styles.vendorButton}
+          onPress={() => router.push('/vendor/vendor-login')}
         >
-          <Text style={styles.linkText}>Register Now</Text>
+          <Text style={styles.buttonText}>Vendor Login/Register</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/forgot_pass')}
-        >
-          <Text style={styles.linkText}>Forgot Password ?</Text>
-        </TouchableOpacity>
+        <View style={styles.linksContainer}>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.linkText}>Register Now</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/admin')}
-        >
-          <Text style={styles.linkText}>Admin Login</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => router.push('/forgot_pass')}
+          >
+            <Text style={styles.linkText}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -134,7 +143,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   topBar: {
-    backgroundColor: '#2ecc71', // Green color for agricultural theme
+    backgroundColor: '#2ecc71',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -142,15 +151,27 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   navContainer: {
-    height: 60,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    height: 60,
     paddingHorizontal: 15,
   },
   appName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+  },
+  adminButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  adminButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
   formContainer: {
     flex: 1,
@@ -173,6 +194,14 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+    marginBottom: 10,
+  },
+  vendorButton: {
+    width: '100%',
+    backgroundColor: '#2980b9',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
     marginBottom: 15,
   },
   buttonText: {
@@ -180,8 +209,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  linksContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 10,
+  },
   linkButton: {
-    marginBottom: 10,
+    padding: 8,
   },
   linkText: {
     color: '#2ecc71',
@@ -198,8 +233,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#333',
-  },
-  disabledButton: {
-    backgroundColor: '#bdc3c7',
   },
 });
