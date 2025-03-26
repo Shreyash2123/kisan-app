@@ -29,7 +29,7 @@ export default function AdminDashboard() {
       } else {
         const { data, error } = await supabase
           .from('vendors')
-          .select('full_name, mobile, email, gst_id, bank_name');
+          .select('id, full_name, mobile, email, gst_id, bank_name');
         
         if (error) throw error;
         setVendors(data || []);
@@ -70,6 +70,7 @@ export default function AdminDashboard() {
             
             {activeSection === 'vendors' && (
               <>
+                <Text style={styles.info}>🪪 ( Unique Vendor ID ) {item.id}</Text>
                 <Text style={styles.info}>🏛️ {item.bank_name}</Text>
                 <Text style={styles.info}>🧾 {item.gst_id}</Text>
               </>
