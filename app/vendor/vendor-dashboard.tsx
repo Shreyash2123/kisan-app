@@ -79,6 +79,7 @@ export default function VendorDashboard() {
             <InfoRow label="Mobile" value={vendorData?.mobile} />
             <InfoRow label="Email" value={vendorData?.email} />
             <InfoRow label="GST ID" value={vendorData?.gst_id} />
+            <InfoRow label="Unique ID" value={vendorData?.id} />
           </View>
 
           <View style={styles.section}>
