@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, LayoutAnimation, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, LayoutAnimation, Alert, TextInput, Modal, Image } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getSession, clearSession } from '../../lib/session';
+import { uploadToCloudinary } from '@/lib/cloudinary';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function VendorDashboard() {
   const [vendorData, setVendorData] = useState<any>(null);
@@ -20,6 +22,66 @@ export default function VendorDashboard() {
     price: '',
     description: ''
   });
+
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  // Add image picker handler
+  const pickImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission required',
+          'Sorry, we need camera roll permissions to select images.'
+        );
+        return;
+      }
+
+      // Launch image library
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+        allowsEditing: false, // Set to true if you want to allow image editing
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+    }
+  };
+
+
+  // Add image upload handler
+  const handleUpload = async () => {
+    if (!selectedImage || !selectedProduct) return;
+
+    setUploading(true);
+    try {
+      const filename = selectedImage.split('/').pop();
+      const fileType = filename?.split('.').pop();
+
+      const file = {
+        uri: selectedImage,
+        name: filename,
+        type: `image/${fileType}`,
+      } as any;
+
+      const response = await uploadToCloudinary(file, selectedProduct);
+      setUploadedUrls(prev => [...prev, response.secure_url]);
+      setSelectedImage(null);
+    } catch (error) {
+      Alert.alert('Upload failed', 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Add this useEffect for fetching products
   useEffect(() => {
@@ -232,10 +294,70 @@ export default function VendorDashboard() {
                     <Text style={styles.descriptionText}>{product.description}</Text>
                   </View>
                 )}
+                <TouchableOpacity
+                  style={styles.demoButton}
+                  onPress={() => {
+                    // Pass the actual product ID here
+                    setSelectedProduct('product-id-here');
+                    setShowImageModal(true);
+                  }}
+                >
+                  <Text style={styles.buttonText}>Upload Images</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
+
+        <Modal
+          visible={showImageModal}
+          animationType="slide"
+          onRequestClose={() => setShowImageModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Upload Product Images</Text>
+
+            <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+              <Text style={styles.buttonText}>Select Image</Text>
+            </TouchableOpacity>
+
+            {selectedImage && (
+              <>
+                <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={handleUpload}
+                  disabled={uploading}
+                >
+                  <Text style={styles.buttonText}>
+                    {uploading ? 'Uploading...' : 'Upload Image'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {uploadedUrls.length > 0 && (
+              <View style={styles.urlList}>
+                <Text style={styles.urlTitle}>Uploaded Images:</Text>
+                {uploadedUrls.map((url, index) => (
+                  <Text key={index} style={styles.urlItem}>
+                    {url}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setShowImageModal(false);
+                setUploadedUrls([]);
+              }}
+            >
+              <Text style={styles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
       </View>
     );
@@ -272,7 +394,19 @@ export default function VendorDashboard() {
               <TouchableOpacity
                 style={[styles.navButton, showProfile && styles.activeNavButton]}
                 onPress={() => {
+                  setShowProfile(false);
+                  setShowProductForm(false);
+                  toggleSidebar();
+                }}
+              >
+                <Text style={styles.navButtonText}>Home</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.navButton, showProfile && styles.activeNavButton]}
+                onPress={() => {
                   setShowProfile(true);
+                  setShowProductForm(false);
                   toggleSidebar();
                 }}
               >
@@ -283,6 +417,7 @@ export default function VendorDashboard() {
                 style={[styles.navButton, showProductForm && styles.activeNavButton]}
                 onPress={() => {
                   setShowProductForm(true);
+                  setShowProfile(false);
                   toggleSidebar();
                 }}
               >
@@ -313,6 +448,56 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: 'white',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  uploadButton: {
+    backgroundColor: '#3498db',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'contain',
+    marginVertical: 10,
+  },
+  urlList: {
+    marginTop: 20,
+  },
+  urlTitle: {
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  urlItem: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 5,
+  },
+  closeButton: {
+    backgroundColor: '#e74c3c',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  demoButton: {
+    backgroundColor: '#9b59b6',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
   input: {
     width: '100%',
     borderWidth: 1,
@@ -513,7 +698,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-    alignSelf: 'stretch', 
+    alignSelf: 'stretch',
   },
   productHeader: {
     fontSize: 16,
