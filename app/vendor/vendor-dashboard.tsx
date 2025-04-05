@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, LayoutAnimation } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, LayoutAnimation, Alert, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getSession, clearSession } from '../../lib/session';
@@ -10,6 +10,65 @@ export default function VendorDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productForm, setProductForm] = useState({
+    name: '',
+    category: '', // New field
+    quantity: '',
+    price: '',
+    description: ''
+  });
+
+  // Add this useEffect for fetching products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (vendorData?.id) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('vendor_id', vendorData.id);
+
+        if (data) setProducts(data);
+        if (error) console.error('Error fetching products:', error);
+      }
+    };
+
+    fetchProducts();
+  }, [vendorData, showProductForm]);
+
+  // Add this function for product submission
+  const handleAddProduct = async () => {
+    if (!productForm.name || !productForm.category || !productForm.quantity || !productForm.price) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([{
+          ...productForm,
+          vendor_id: vendorData?.id,
+          quantity: Number(productForm.quantity),
+          price: Number(productForm.price),
+          category: productForm.category // Add category
+        }])
+        .select();
+
+      if (error) throw error;
+
+      setProducts([...products, ...data]);
+      setProductForm({ name: '', category: '', quantity: '', price: '', description: '' });
+      setShowProductForm(false);
+      Alert.alert('Success', 'Product added successfully!');
+
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add product');
+    }
+  };
+
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -72,7 +131,7 @@ export default function VendorDashboard() {
       return (
         <>
           <Text style={styles.sectionHeader}>Your Profile</Text>
-          
+
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Personal Information</Text>
             <InfoRow label="Full Name" value={vendorData?.full_name} />
@@ -93,10 +152,91 @@ export default function VendorDashboard() {
       );
     }
 
+    if (showProductForm) {
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>Add New Product</Text>
+          <TextInput
+            placeholder="Product Name"
+            value={productForm.name}
+            onChangeText={(text) => setProductForm({ ...productForm, name: text })}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Category"
+            value={productForm.category}
+            onChangeText={(text) => setProductForm({ ...productForm, category: text })}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Quantity"
+            value={productForm.quantity}
+            onChangeText={(text) => setProductForm({ ...productForm, quantity: text })}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            placeholder="Price"
+            value={productForm.price}
+            onChangeText={(text) => setProductForm({ ...productForm, price: text })}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            placeholder="Description"
+            value={productForm.description}
+            onChangeText={(text) => setProductForm({ ...productForm, description: text })}
+            style={styles.input}
+            multiline
+          />
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddProduct}
+          >
+            <Text style={styles.buttonText}>Add Product</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setShowProductForm(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.welcomeContainer}>
         <Text style={styles.welcomeTitle}>Welcome, {vendorData?.full_name}</Text>
         <Text style={styles.welcomeText}>Manage your vendor account and transactions here</Text>
+
+        {products.length > 0 && (
+          <View style={styles.productSection}>
+            <Text style={styles.sectionHeader}>Your Products ({products.length})</Text>
+            {products.map((product, index) => (
+              <View key={index} style={styles.productCard}>
+                <Text style={styles.productHeader}>{product.name}</Text>
+                <View style={styles.categoryTag}>
+                  <Text style={styles.categoryText}>{product.category}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Price:</Text>
+                  <Text style={[styles.infoValue, styles.priceText]}>₹{product.price}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Quantity:</Text>
+                  <Text style={[styles.infoValue, styles.quantityText]}>{product.quantity}</Text>
+                </View>
+                {product.description && (
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#ecf0f1', marginTop: 10, paddingTop: 10 }}>
+                    <Text style={styles.descriptionText}>{product.description}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
       </View>
     );
   };
@@ -109,9 +249,9 @@ export default function VendorDashboard() {
           <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>
             <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
-          
+
           <Text style={styles.navTitle}>Vendor Dashboard</Text>
-          
+
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.buttonText}>Logout</Text>
           </TouchableOpacity>
@@ -120,7 +260,7 @@ export default function VendorDashboard() {
 
       {/* Sidebar Overlay */}
       {isSidebarVisible && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
           onPress={toggleSidebar}
@@ -128,7 +268,7 @@ export default function VendorDashboard() {
           <View style={styles.sidebar}>
             <View style={styles.sidebarContent}>
               <Text style={styles.sidebarTitle}>Vendor Menu</Text>
-              
+
               <TouchableOpacity
                 style={[styles.navButton, showProfile && styles.activeNavButton]}
                 onPress={() => {
@@ -138,13 +278,24 @@ export default function VendorDashboard() {
               >
                 <Text style={styles.navButtonText}>Profile</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.navButton, showProductForm && styles.activeNavButton]}
+                onPress={() => {
+                  setShowProductForm(true);
+                  toggleSidebar();
+                }}
+              >
+                <Text style={styles.navButtonText}>Add Product</Text>
+              </TouchableOpacity>
+
             </View>
           </View>
         </TouchableOpacity>
       )}
 
       {/* Main Content */}
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.content}
         style={styles.mainContent}
       >
@@ -162,6 +313,35 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  input: {
+    width: '100%',
+    borderWidth: 1,
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 8,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    fontSize: 16,
+  },
+  addButton: {
+    backgroundColor: '#2ecc71',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  cancelButton: {
+    backgroundColor: '#bdc3c7',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  cancelButtonText: {
+    color: '#2c3e50',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -308,5 +488,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     margin: 20,
+  },
+  productSection: {
+    marginTop: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    width: '100%',
+  },
+  productCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    alignSelf: 'stretch', 
+  },
+  productHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 10,
+  },
+  categoryTag: {
+    backgroundColor: '#3498db',
+    borderRadius: 15,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  categoryText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  priceText: {
+    color: '#27ae60',
+    fontWeight: 'bold',
+  },
+  quantityText: {
+    color: '#e67e22',
+    fontWeight: '500',
+  },
+  descriptionText: {
+    color: '#7f8c8d',
+    fontStyle: 'italic',
+    fontSize: 12,
+    paddingBottom: 5,
   },
 });
