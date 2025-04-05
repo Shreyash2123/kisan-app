@@ -26,7 +26,9 @@ export default function VendorDashboard() {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<{
+    img_url: string | undefined; id: string, url: string
+  }[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Add image picker handler
@@ -64,6 +66,7 @@ export default function VendorDashboard() {
 
     setUploading(true);
     try {
+      // Upload to Cloudinary
       const filename = selectedImage.split('/').pop();
       const fileType = filename?.split('.').pop();
 
@@ -73,15 +76,44 @@ export default function VendorDashboard() {
         type: `image/${fileType}`,
       } as any;
 
-      const response = await uploadToCloudinary(file, selectedProduct);
-      setUploadedUrls(prev => [...prev, response.secure_url]);
+      const cloudinaryResponse = await uploadToCloudinary(file, selectedProduct);
+
+      // Save to Supabase
+      const { data, error } = await supabase
+        .from('product_img')
+        .insert([{
+          product_id: selectedProduct,
+          img_url: cloudinaryResponse.secure_url
+        }])
+        .select();
+
+      if (error) throw error;
+
+      setUploadedUrls(prev => [...prev, ...data]);
       setSelectedImage(null);
     } catch (error) {
-      Alert.alert('Upload failed', 'Failed to upload image');
+      Alert.alert('Upload failed', error instanceof Error ? error.message : 'Failed to upload image');
     } finally {
       setUploading(false);
     }
   };
+
+  // Add useEffect to fetch existing images
+  useEffect(() => {
+    const fetchProductImages = async () => {
+      if (selectedProduct) {
+        const { data, error } = await supabase
+          .from('product_img')
+          .select('*')
+          .eq('product_id', selectedProduct);
+
+        if (data) setUploadedUrls(data);
+        if (error) console.error('Error fetching images:', error);
+      }
+    };
+
+    fetchProductImages();
+  }, [selectedProduct]);
 
   // Add this useEffect for fetching products
   useEffect(() => {
@@ -277,6 +309,7 @@ export default function VendorDashboard() {
             <Text style={styles.sectionHeader}>Your Products ({products.length})</Text>
             {products.map((product, index) => (
               <View key={index} style={styles.productCard}>
+                <Text style={styles.productHeader}>Product Id : {product.id}</Text>
                 <Text style={styles.productHeader}>{product.name}</Text>
                 <View style={styles.categoryTag}>
                   <Text style={styles.categoryText}>{product.category}</Text>
@@ -298,7 +331,7 @@ export default function VendorDashboard() {
                   style={styles.demoButton}
                   onPress={() => {
                     // Pass the actual product ID here
-                    setSelectedProduct('product-id-here');
+                    setSelectedProduct(product.id);
                     setShowImageModal(true);
                   }}
                 >
@@ -315,10 +348,25 @@ export default function VendorDashboard() {
           onRequestClose={() => setShowImageModal(false)}
         >
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Upload Product Images</Text>
+            <Text style={styles.modalTitle}>
+              Product Images ({uploadedUrls.length})
+            </Text>
+            {selectedProduct && (
+              <Text style={styles.productIdText}>Product ID: {selectedProduct}</Text>
+            )}
+
+            <ScrollView contentContainerStyle={styles.imageGrid}>
+              {uploadedUrls.map((image) => (
+                <Image
+                  key={image.id}
+                  source={{ uri: image.img_url }}
+                  style={styles.thumbnail}
+                />
+              ))}
+            </ScrollView>
 
             <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-              <Text style={styles.buttonText}>Select Image</Text>
+              <Text style={styles.buttonText}>Select New Image</Text>
             </TouchableOpacity>
 
             {selectedImage && (
@@ -336,22 +384,12 @@ export default function VendorDashboard() {
               </>
             )}
 
-            {uploadedUrls.length > 0 && (
-              <View style={styles.urlList}>
-                <Text style={styles.urlTitle}>Uploaded Images:</Text>
-                {uploadedUrls.map((url, index) => (
-                  <Text key={index} style={styles.urlItem}>
-                    {url}
-                  </Text>
-                ))}
-              </View>
-            )}
-
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => {
                 setShowImageModal(false);
                 setUploadedUrls([]);
+                setSelectedProduct(null);
               }}
             >
               <Text style={styles.buttonText}>Close</Text>
@@ -401,7 +439,7 @@ export default function VendorDashboard() {
               >
                 <Text style={styles.navButtonText}>Home</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.navButton, showProfile && styles.activeNavButton]}
                 onPress={() => {
@@ -448,6 +486,23 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  thumbnail: {
+    width: 100,
+    height: 100,
+    margin: 5,
+    borderRadius: 8,
+  },
+  productIdText: {
+    textAlign: 'center',
+    color: '#7f8c8d',
+    marginBottom: 15,
+    fontSize: 14,
+  },
   modalContainer: {
     flex: 1,
     padding: 20,
