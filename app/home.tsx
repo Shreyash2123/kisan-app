@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Text, View, TouchableOpacity, SafeAreaView, StyleSheet, Animated, Easing, Dimensions, ScrollView, Image, ViewStyle, ActivityIndicator } from 'react-native';
+import { Text, View, TouchableOpacity, SafeAreaView, StyleSheet, Animated, Easing, Dimensions, ScrollView, Image, ViewStyle, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,18 @@ export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [userEmail, setUserEmail] = useState('');
+
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [userDetails, setUserDetails] = useState<any>({});
+  const [formData, setFormData] = useState({
+    fullName: '',
+    address: '',
+    pinCode: '',
+    mobile: '',
+  });
 
   // Add this useEffect for fetching products
   useEffect(() => {
@@ -53,6 +65,55 @@ export default function Home() {
 
     fetchProducts();
   }, []);
+
+  // Add this function to fetch all images when opening modal
+  const fetchProductDetails = async (productId: string) => {
+    try {
+      const { data: imagesData } = await supabase
+        .from('product_img')
+        .select('img_url')
+        .eq('product_id', productId);
+
+      return imagesData?.map(img => img.img_url) || [require('../assets/placeholder.jpg')];
+    } catch (error) {
+      console.error('Error fetching product images:', error);
+      return [require('../assets/placeholder.jpg')];
+    }
+  };
+
+  // Update the Buy Now button handler
+  const handleBuyNow = async (product: any) => {
+    const allImages = await fetchProductDetails(product.id);
+    setSelectedProduct({
+      ...product,
+      images: allImages
+    });
+    setShowProductModal(true);
+  };
+
+  // Fetch user details when checkout modal opens
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (showCheckoutModal) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('full_name, address, mobile')
+          .eq('email', userEmail)
+          .single();
+
+        if (data) {
+          setUserDetails(data);
+          setFormData({
+            fullName: data.full_name,
+            address: data.address,
+            mobile: data.mobile,
+            pinCode: ''
+          });
+        }
+      }
+    };
+    fetchUserDetails();
+  }, [showCheckoutModal]);
 
   const slides: any[] = [
     { id: 1, title: "Fresh Produce", subtitle: "Direct from Farm to Table", image: require('../assets/img1.jpg') },
@@ -229,9 +290,13 @@ export default function Home() {
 
                     <View style={styles.productInfo}>
                       <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                      <Text style={styles.productCategory}>{product.category}</Text>
                       <Text style={styles.productPrice}>₹{product.price}</Text>
 
-                      <TouchableOpacity style={styles.buyButton}>
+                      <TouchableOpacity
+                        style={styles.buyButton}
+                        onPress={() => handleBuyNow(product)}
+                      >
                         <Text style={styles.buyButtonText}>Buy Now</Text>
                         <Ionicons name="cart" size={18} color="white" />
                       </TouchableOpacity>
@@ -248,12 +313,263 @@ export default function Home() {
           </View>
         </ScrollView>
       </View >
+
+      {/* Product Modal */}
+      <Modal visible={showProductModal} transparent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.productModal}>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowProductModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#7f8c8d" />
+            </TouchableOpacity>
+            <ScrollView horizontal pagingEnabled>
+              {selectedProduct?.images.map((img: string, index: number) => (
+                <Image
+                  key={index}
+                  source={typeof img === 'string' ? { uri: img } : img}
+                  style={styles.modalImage}
+                />
+              ))}
+            </ScrollView>
+
+            <Text style={styles.modalTitle}>{selectedProduct?.name}</Text>
+            <Text style={styles.productCategory}>{selectedProduct?.category}</Text>
+            <Text style={styles.modalDescription}>{selectedProduct?.description}</Text>
+            <Text style={styles.modalPrice}>₹{selectedProduct?.price}</Text>
+
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity onPress={() => setQuantity(Math.max(1, quantity - 1))}>
+                <Ionicons name="remove" size={24} color="#2ecc71" />
+              </TouchableOpacity>
+              <Text style={styles.quantityText}>{quantity}</Text>
+              <TouchableOpacity onPress={() => setQuantity(quantity + 1)}>
+                <Ionicons name="add" size={24} color="#2ecc71" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.proceedButton}
+              onPress={() => {
+                setShowProductModal(false);
+                setShowCheckoutModal(true);
+              }}
+            >
+              <Text style={styles.proceedButtonText}>Proceed to Checkout</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Checkout Modal */}
+      <Modal visible={showCheckoutModal} transparent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.checkoutModal}>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setShowCheckoutModal(false);
+                setQuantity(1); // Reset quantity
+              }}
+            >
+              <Ionicons name="close" size={24} color="#7f8c8d" />
+            </TouchableOpacity>
+            <ScrollView>
+              <Text style={styles.checkoutTitle}>Checkout</Text>
+
+              <View style={styles.orderSummary}>
+                <Text style={styles.summaryText}>Product: {selectedProduct?.name}</Text>
+                <Text style={styles.summaryText}>Quantity: {quantity}</Text>
+                <Text style={styles.summaryText}>
+                  Total: ₹{(selectedProduct?.price * quantity).toFixed(2)}
+                </Text>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChangeText={text => setFormData({ ...formData, fullName: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Address"
+                value={formData.address}
+                onChangeText={text => setFormData({ ...formData, address: text })}
+                multiline
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Pin Code"
+                value={formData.pinCode}
+                onChangeText={text => setFormData({ ...formData, pinCode: text })}
+                keyboardType="numeric"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Mobile Number"
+                value={formData.mobile}
+                onChangeText={text => setFormData({ ...formData, mobile: text })}
+                keyboardType="phone-pad"
+              />
+
+              <TouchableOpacity
+                style={styles.payButton}
+                onPress={async () => {
+                  // Process payment
+                  const orderData = {
+                    userEmail,
+                    productId: selectedProduct?.id,
+                    vendorId: selectedProduct?.vendor_id,
+                    quantity,
+                    total: selectedProduct?.price * quantity,
+                    shippingInfo: formData
+                  };
+
+                  // Insert order into database
+                  const { error } = await supabase
+                    .from('orders')
+                    .insert([orderData]);
+
+                  if (!error) {
+                    setShowCheckoutModal(false);
+                    alert('Order placed successfully!');
+                  }
+                }}
+              >
+                <Text style={styles.payButtonText}>Pay Now</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
 
 // Keep the same styles from previous implementation
 const styles = StyleSheet.create({
+  productCategory: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    zIndex: 1,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 15,
+    padding: 5,
+  },
+  checkoutModal: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 20,
+    padding: 25, // Increased padding for close button space
+    maxHeight: '90%',
+    position: 'relative',
+  },
+  productModal: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 20,
+    padding: 25, // Increased padding for close button space
+    maxHeight: '80%',
+    position: 'relative',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    lineHeight: 22,
+    marginBottom: 15,
+  },
+  modalPrice: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2ecc71',
+    marginBottom: 20,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalImage: {
+    width: screenWidth - 80,
+    height: 200,
+    resizeMode: 'contain'
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    gap: 20
+  },
+  quantityText: {
+    fontSize: 18,
+    fontWeight: '600'
+  },
+  proceedButton: {
+    backgroundColor: '#2ecc71',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center'
+  },
+  proceedButtonText: {
+    color: 'white',
+    fontWeight: 'bold'
+  },
+  checkoutTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  orderSummary: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10
+  },
+  summaryText: {
+    fontSize: 16,
+    marginVertical: 5
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 16
+  },
+  payButton: {
+    backgroundColor: '#2ecc71',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20
+  },
+  payButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
   productsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
