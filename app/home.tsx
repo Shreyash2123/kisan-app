@@ -29,6 +29,11 @@ export default function Home() {
     mobile: '',
   });
 
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+
   // Add this useEffect for fetching products
   useEffect(() => {
     const fetchProducts = async () => {
@@ -38,6 +43,12 @@ export default function Home() {
           .select('*');
 
         if (error) throw error;
+
+        // Get unique categories
+        const uniqueCategories = Array.from(
+          new Set(productsData.map(product => product.category))
+        );
+        setCategories(['All', ...uniqueCategories]);
 
         // Fetch images for each product
         const productsWithImages = await Promise.all(
@@ -83,12 +94,19 @@ export default function Home() {
 
   // Update the Buy Now button handler
   const handleBuyNow = async (product: any) => {
-    const allImages = await fetchProductDetails(product.id);
-    setSelectedProduct({
-      ...product,
-      images: allImages
-    });
-    setShowProductModal(true);
+    setLoadingProductId(product.id);
+    try {
+      const allImages = await fetchProductDetails(product.id);
+      setSelectedProduct({
+        ...product,
+        images: allImages
+      });
+      setShowProductModal(true);
+    } catch (error) {
+      console.error('Error loading product details:', error);
+    } finally {
+      setLoadingProductId(null);
+    }
   };
 
   // Fetch user details when checkout modal opens
@@ -218,6 +236,9 @@ export default function Home() {
               <TouchableOpacity style={styles.dropdownItem}>
                 <Text style={styles.dropdownText}>Profile</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={styles.dropdownItem}>
+                <Text style={styles.dropdownText}>Orders</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>
                 <Text style={styles.dropdownText}>Logout</Text>
               </TouchableOpacity>
@@ -262,6 +283,33 @@ export default function Home() {
             </View>
           </View>
 
+          {/* Filter Section */}
+          <View style={styles.filterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScroll}
+            >
+              {categories.map(category => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === category && styles.activeCategoryButton
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text style={[
+                    styles.categoryButtonText,
+                    selectedCategory === category && styles.activeCategoryText
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
           {/* Products Section */}
           <View style={styles.productsContainer}>
             <Text style={styles.sectionTitle}>Featured Products</Text>
@@ -270,39 +318,53 @@ export default function Home() {
               <ActivityIndicator size="large" color="#2ecc71" />
             ) : products.length > 0 ? (
               <View style={styles.productsGrid}>
-                {products.map((product) => (
-                  <View key={product.id} style={styles.productCard}>
-                    <View style={styles.imageContainer}>
-                      <Image
-                        source={typeof product.image === 'string' ?
-                          { uri: product.image } : product.image}
-                        style={styles.productImage}
-                      />
-                      <TouchableOpacity style={styles.heartButton}>
-                        <Ionicons
-                          name="heart-outline"
-                          size={24}
-                          color="#e74c3c"
-                          style={styles.heartIcon}
+                {products
+                  .filter(product =>
+                    selectedCategory === 'All' || product.category === selectedCategory
+                  )
+                  .map((product) => (
+                    <View key={product.id} style={styles.productCard}>
+                      <View style={styles.imageContainer}>
+                        <Image
+                          source={typeof product.image === 'string' ?
+                            { uri: product.image } : product.image}
+                          style={styles.productImage}
                         />
-                      </TouchableOpacity>
-                    </View>
+                        <TouchableOpacity style={styles.heartButton}>
+                          <Ionicons
+                            name="heart-outline"
+                            size={24}
+                            color="#e74c3c"
+                            style={styles.heartIcon}
+                          />
+                        </TouchableOpacity>
+                      </View>
 
-                    <View style={styles.productInfo}>
-                      <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
-                      <Text style={styles.productCategory}>{product.category}</Text>
-                      <Text style={styles.productPrice}>₹{product.price}</Text>
+                      <View style={styles.productInfo}>
+                        <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                        <Text style={styles.productCategory}>{product.category}</Text>
+                        <Text style={styles.productPrice}>₹{product.price}</Text>
 
-                      <TouchableOpacity
-                        style={styles.buyButton}
-                        onPress={() => handleBuyNow(product)}
-                      >
-                        <Text style={styles.buyButtonText}>Buy Now</Text>
-                        <Ionicons name="cart" size={18} color="white" />
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.buyButton,
+                            loadingProductId === product.id && styles.loadingButton
+                          ]}
+                          onPress={() => handleBuyNow(product)}
+                          disabled={loadingProductId !== null}
+                        >
+                          {loadingProductId === product.id ? (
+                            <ActivityIndicator color="white" />
+                          ) : (
+                            <>
+                              <Text style={styles.buyButtonText}>Buy Now</Text>
+                              <Ionicons name="cart" size={18} color="white" />
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  ))}
               </View>
             ) : (
               <View style={styles.comingSoon}>
@@ -452,6 +514,33 @@ export default function Home() {
 
 // Keep the same styles from previous implementation
 const styles = StyleSheet.create({
+  loadingButton: {
+    opacity: 0.8,
+  },
+  filterContainer: {
+    marginBottom: 20,
+    marginTop: 20
+  },
+  filterScroll: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  categoryButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#ecf0f1',
+  },
+  activeCategoryButton: {
+    backgroundColor: '#2ecc71',
+  },
+  categoryButtonText: {
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  activeCategoryText: {
+    color: 'white',
+  },
   productCategory: {
     fontSize: 14,
     color: '#7f8c8d',
