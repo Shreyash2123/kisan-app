@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { cld } from '@/lib/cloudinary';
 
+
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function Home() {
@@ -33,6 +34,52 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+    cardType: '',
+  });
+  const [orderId, setOrderId] = useState('');
+
+  const handlePayNow = async () => {
+    // Simple validation
+    if (!paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv || !paymentData.cardType) {
+      alert('Please fill all payment details');
+      return;
+    }
+
+    // Process order
+    const orderData = {
+      user_email: userEmail,
+      product_id: selectedProduct?.id,
+      vendor_id: selectedProduct?.vendor_id,
+      quantity,
+      total: selectedProduct?.price * quantity,
+      shipping_info: formData,
+      payment_method: paymentData.cardType
+    };
+
+    // Insert order into database
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select();
+
+    if (error) {
+      alert('Error placing order: ' + error.message);
+      return;
+    }
+
+    if (data) {
+      setOrderId(data[0].id);
+      setShowPaymentModal(false);
+      setShowReceiptModal(true);
+    }
+  };
 
   // Add this useEffect for fetching products
   useEffect(() => {
@@ -480,31 +527,125 @@ export default function Home() {
 
               <TouchableOpacity
                 style={styles.payButton}
-                onPress={async () => {
-                  // Process payment
-                  const orderData = {
-                    userEmail,
-                    productId: selectedProduct?.id,
-                    vendorId: selectedProduct?.vendor_id,
-                    quantity,
-                    total: selectedProduct?.price * quantity,
-                    shippingInfo: formData
-                  };
-
-                  // Insert order into database
-                  const { error } = await supabase
-                    .from('orders')
-                    .insert([orderData]);
-
-                  if (!error) {
-                    setShowCheckoutModal(false);
-                    alert('Order placed successfully!');
-                  }
+                onPress={() => {
+                  setShowCheckoutModal(false);
+                  setShowPaymentModal(true);
                 }}
               >
-                <Text style={styles.payButtonText}>Pay Now</Text>
+                <Text style={styles.payButtonText}>Proceed to Payment</Text>
               </TouchableOpacity>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Modal */}
+      <Modal visible={showPaymentModal} transparent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.paymentModal}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowPaymentModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#7f8c8d" />
+            </TouchableOpacity>
+
+            <Text style={styles.paymentTitle}>Payment Details</Text>
+
+            <View style={styles.cardIconsContainer}>
+              <TouchableOpacity
+                style={[styles.cardButton, paymentData.cardType === 'visa' && styles.selectedCard]}
+                onPress={() => setPaymentData({ ...paymentData, cardType: 'visa' })}
+              >
+                <Image
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png' }}
+                  style={styles.cardImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cardButton, paymentData.cardType === 'mastercard' && styles.selectedCard]}
+                onPress={() => setPaymentData({ ...paymentData, cardType: 'mastercard' })}
+              >
+                <Image
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/2560px-Mastercard_2019_logo.svg.png' }}
+                  style={styles.cardImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Card Number"
+              keyboardType="numeric"
+              maxLength={19}
+              value={paymentData.cardNumber.replace(/\W/gi, '').replace(/(.{4})/g, '$1 ')}
+              onChangeText={text => setPaymentData({ ...paymentData, cardNumber: text })}
+            />
+
+            <View style={styles.row}>
+              <TextInput
+                style={[styles.input, styles.halfInput]}
+                placeholder="MM/YY"
+                maxLength={5}
+                value={paymentData.expiry}
+                onChangeText={text => setPaymentData({ ...paymentData, expiry: text })}
+              />
+              <TextInput
+                style={[styles.input, styles.halfInput]}
+                placeholder="CVV"
+                keyboardType="numeric"
+                maxLength={4}
+                secureTextEntry
+                value={paymentData.cvv}
+                onChangeText={text => setPaymentData({ ...paymentData, cvv: text })}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.payNowButton} onPress={handlePayNow}>
+              <Text style={styles.payNowButtonText}>Pay ₹{(selectedProduct?.price * quantity).toFixed(2)}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Receipt Modal */}
+      <Modal visible={showReceiptModal} transparent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.receiptModal}>
+            <View style={styles.receiptHeader}>
+              <Ionicons name="checkmark-circle" size={60} color="#2ecc71" />
+              <Text style={styles.receiptTitle}>Payment Successful!</Text>
+            </View>
+
+            <View style={styles.receiptDetails}>
+              <Text style={styles.receiptText}>Order ID: #{orderId}</Text>
+              <Text style={styles.receiptText}>Product: {selectedProduct?.name}</Text>
+              <Text style={styles.receiptText}>Quantity: {quantity}</Text>
+              <Text style={styles.receiptText}>Total: ₹{(selectedProduct?.price * quantity).toFixed(2)}</Text>
+              <Text style={styles.receiptText}>Payment Method: {paymentData.cardType.toUpperCase()}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.downloadButton}
+              onPress={() => alert('Receipt downloaded!')}
+            >
+              <Ionicons name="download" size={20} color="white" />
+              <Text style={styles.downloadButtonText}>Download Receipt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.continueShopping}
+              onPress={() => {
+                setShowReceiptModal(false);
+                setQuantity(1);
+                setSelectedProduct(null);
+              }}
+            >
+              <Text style={styles.continueText}>Continue Shopping</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -514,6 +655,135 @@ export default function Home() {
 
 // Keep the same styles from previous implementation
 const styles = StyleSheet.create({
+  cardButton: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
+    width: 100,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  selectedCard: {
+    borderColor: '#2ecc71',
+    backgroundColor: '#f0fdf4',
+    shadowColor: '#2ecc71',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardImage: {
+    width: 80,
+    height: 40,
+  },
+  paymentModal: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 25,
+    padding: 25,
+    maxHeight: '90%',
+    position: 'relative',
+  },
+  paymentTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  cardIconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 15,
+    marginBottom: 20,
+  },
+  cardIcon: {
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ecf0f1',
+  },
+  rupayText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0d47a1',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 15,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  payNowButton: {
+    backgroundColor: '#2ecc71',
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#2ecc71',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  payNowButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  receiptModal: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 25,
+    padding: 30,
+    alignItems: 'center',
+  },
+  receiptHeader: {
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  receiptTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2ecc71',
+    marginTop: 15,
+  },
+  receiptDetails: {
+    width: '100%',
+    marginBottom: 25,
+  },
+  receiptText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginVertical: 8,
+  },
+  downloadButton: {
+    backgroundColor: '#2ecc71',
+    padding: 15,
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  downloadButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  continueShopping: {
+    padding: 10,
+  },
+  continueText: {
+    color: '#2ecc71',
+    fontWeight: '600',
+  },
   loadingButton: {
     opacity: 0.8,
   },
