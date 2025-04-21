@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { getSession, clearSession } from '../../lib/session';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function VendorDashboard() {
   const [vendorData, setVendorData] = useState<any>(null);
@@ -30,6 +31,105 @@ export default function VendorDashboard() {
     img_url: string | undefined; id: string, url: string
   }[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  const [orders, setOrders] = useState<any[]>([]);
+
+  // Add this useEffect for fetching orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (vendorData?.id) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+          *,
+          products:product_id (*)
+        `)
+          .eq('vendor_id', vendorData.id)
+          .order('created_at', { ascending: false });
+
+        if (data) setOrders(data);
+        if (error) console.error('Error fetching orders:', error);
+      }
+    };
+
+    fetchOrders();
+  }, [vendorData]);
+
+  // Add this function to handle status updates
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrders(prev => prev.map(order =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      ));
+      Alert.alert('Success', 'Order status updated successfully');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update status');
+    }
+  };
+
+  // Add this function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'processing': return '#fff3cd';
+      case 'shipped': return '#cce5ff';
+      case 'delivered': return '#d4edda';
+      case 'cancelled': return '#f8d7da';
+      default: return '#f8f9fa';
+    }
+  };
+
+  // Add this status selector component
+  const StatusSelector = ({ currentStatus, onSelect }: {
+    currentStatus: string;
+    onSelect: (status: string) => void
+  }) => {
+    const [showOptions, setShowOptions] = useState(false);
+
+    return (
+      <View style={styles.statusContainer}>
+        <TouchableOpacity
+          style={[styles.statusBadge, { backgroundColor: getStatusColor(currentStatus) }]}
+          onPress={() => setShowOptions(true)}
+        >
+          <Text style={styles.statusText}>{currentStatus}</Text>
+        </TouchableOpacity>
+
+        <Modal
+          visible={showOptions}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowOptions(false)}
+        >
+          <View style={styles.statusModal}>
+            <View style={styles.statusOptions}>
+              {['processing', 'shipped', 'delivered', 'cancelled'].map(status => (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.statusOption,
+                  { backgroundColor: getStatusColor(status) }]}
+                  onPress={() => {
+                    onSelect(status);
+                    setShowOptions(false);
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>{status}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  };
+
 
   // Add image picker handler
   const pickImage = async () => {
@@ -302,7 +402,7 @@ export default function VendorDashboard() {
     return (
       <View style={styles.welcomeContainer}>
         <Text style={styles.welcomeTitle}>Welcome, {vendorData?.full_name}</Text>
-        <Text style={styles.welcomeText}>Manage your vendor account and transactions here</Text>
+        <Text style={styles.welcomeText}>Manage your vendor account and orders here</Text>
 
         {products.length > 0 && (
           <View style={styles.productSection}>
@@ -339,6 +439,78 @@ export default function VendorDashboard() {
                 </TouchableOpacity>
               </View>
             ))}
+          </View>
+        )}
+
+        {orders.length > 0 ? (
+          <View style={styles.ordersSection}>
+            <Text style={styles.sectionHeader}>Recent Orders ({orders.length})</Text>
+            {orders.map(order => (
+              <View key={order.id} style={styles.orderCard}>
+                <View style={styles.orderHeader}>
+                  <View style={styles.orderIdContainer}>
+                    <Text style={styles.orderId}>Order # {order.id}</Text>
+                    <Text style={styles.orderDate}>
+                      {new Date(order.created_at).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
+                    <Text style={styles.statusText}>{order.status}</Text>
+                  </View>
+                </View>
+
+                {order.products && (
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{order.products.name}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.productPrice}>₹{order.products.price} x {order.quantity}</Text>
+                      <Text style={styles.totalPrice}>₹{(order.total).toFixed(2)}</Text>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.orderDetails}>
+                  <View style={styles.detailRow}>
+                    <Ionicons name="person" size={14} color="#7f8c8d" />
+                    <Text style={styles.detailLabel}>Customer:</Text>
+                    <Text style={styles.detailValue}>{order.shipping_info?.fullName}</Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Ionicons name="location" size={14} color="#7f8c8d" />
+                    <Text style={styles.detailLabel}>Address:</Text>
+                    <Text style={styles.detailValue}>
+                      {order.shipping_info?.address}, {order.shipping_info?.pinCode}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Ionicons name="card" size={14} color="#7f8c8d" />
+                    <Text style={styles.detailLabel}>Payment:</Text>
+                    <Text style={[styles.detailValue, styles.paymentMethod]}>
+                      {order.payment_method || 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.statusContainer}>
+                  <Text style={styles.statusLabel}>Update Status:</Text>
+                  <StatusSelector
+                    currentStatus={order.status || 'processing'}
+                    onSelect={(newStatus) => handleStatusChange(order.id, newStatus)}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyOrdersContainer}>
+            <Ionicons name="cube-outline" size={50} color="#bdc3c7" />
+            <Text style={styles.emptyOrdersText}>No orders right now</Text>
           </View>
         )}
 
@@ -486,6 +658,158 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  ordersSection: {
+    marginTop: 20,
+    width: '100%',
+  },
+  orderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+    paddingBottom: 12,
+  },
+  orderIdContainer: {
+    flex: 1,
+  },
+  orderId: {
+    fontSize: 15,
+    color: '#2c3e50',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  orderDate: {
+    fontSize: 13,
+    color: '#7f8c8d',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    marginLeft: 10,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  productInfo: {
+    marginBottom: 12,
+  },
+  productName: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  productPrice: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  totalPrice: {
+    fontSize: 15,
+    color: '#27ae60',
+    fontWeight: '600',
+  },
+  orderDetails: {
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    width: 70,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
+  },
+  paymentMethod: {
+    textTransform: 'capitalize',
+    fontWeight: '500',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+    marginTop: 8,
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  emptyOrdersContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  emptyOrdersText: {
+    fontSize: 16,
+    color: '#bdc3c7',
+    marginTop: 10,
+    fontWeight: '500',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  statusModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusOptions: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    width: '80%',
+  },
+  statusOption: {
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 5,
+    alignItems: 'center',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

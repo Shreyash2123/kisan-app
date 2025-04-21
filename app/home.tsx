@@ -280,10 +280,16 @@ export default function Home() {
               ]}
             >
               <Text style={styles.dropdownEmail}>{userEmail}</Text>
-              <TouchableOpacity style={styles.dropdownItem}>
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => router.push('/profile')}
+              >
                 <Text style={styles.dropdownText}>Profile</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.dropdownItem}>
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => router.push('/orders')}
+              >
                 <Text style={styles.dropdownText}>Orders</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>
