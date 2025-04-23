@@ -47,7 +47,7 @@ export default function VendorRegister() {
     if (!validateForm()) {
       setLoading(false); // Stop loading if validation fails
       return;
-    }  
+    }
 
     try {
       const salt = bcrypt.genSaltSync(10);
@@ -94,7 +94,7 @@ export default function VendorRegister() {
 
       {/* Top Bar with Back Button */}
       <View style={styles.topBar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
@@ -107,8 +107,10 @@ export default function VendorRegister() {
         {/* Loading Overlay */}
         {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#2980b9" />
-            <Text style={styles.loadingText}>Registering...</Text>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2980b9" />
+              <Text style={styles.loadingText}>Registering...</Text>
+            </View>
           </View>
         )}
 
@@ -198,7 +200,9 @@ export default function VendorRegister() {
           onPress={handleRegister}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Register</Text>
+          <Text style={styles.buttonText}>
+            {loading ? 'Registering...' : 'Register'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -241,6 +245,31 @@ const InputField = ({
 );
 
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingContainer: {
+    backgroundColor: 'white',
+    padding: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -316,18 +345,6 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#2980b9',
     fontWeight: '500',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#2980b9',
   },
   topBar: {
     flexDirection: 'row',

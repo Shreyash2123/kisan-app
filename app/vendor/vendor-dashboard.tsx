@@ -255,7 +255,7 @@ export default function VendorDashboard() {
 
       setProducts([...products, ...data]);
       setProductForm({ name: '', category: '', quantity: '', price: '', description: '' });
-      setShowProductForm(false);
+      // setShowProductForm(false);
       Alert.alert('Success', 'Product added successfully!');
 
     } catch (error) {
@@ -349,7 +349,7 @@ export default function VendorDashboard() {
     if (showProductForm) {
       return (
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>Add New Product</Text>
+          <Text style={styles.sectionHeader}>Add Product</Text>
           <TextInput
             placeholder="Product Name"
             value={productForm.name}
@@ -395,6 +395,100 @@ export default function VendorDashboard() {
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
+
+          {/* Products */}
+          {products.length > 0 && (
+            <View style={styles.productSection}>
+              <Text style={styles.sectionHeader}>Your Products ({products.length})</Text>
+              {products.map((product, index) => (
+                <View key={index} style={styles.productCard}>
+                  <Text style={styles.productHeader}>Product Id : {product.id}</Text>
+                  <Text style={styles.productHeader}>{product.name}</Text>
+                  <View style={styles.categoryTag}>
+                    <Text style={styles.categoryText}>{product.category}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Price:</Text>
+                    <Text style={[styles.infoValue, styles.priceText]}>₹{product.price}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Quantity:</Text>
+                    <Text style={[styles.infoValue, styles.quantityText]}>{product.quantity}</Text>
+                  </View>
+                  {product.description && (
+                    <View style={{ borderTopWidth: 1, borderTopColor: '#ecf0f1', marginTop: 10, paddingTop: 10 }}>
+                      <Text style={styles.descriptionText}>{product.description}</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.demoButton}
+                    onPress={() => {
+                      // Pass the actual product ID here
+                      setSelectedProduct(product.id);
+                      setShowImageModal(true);
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Upload Images</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Modal
+            visible={showImageModal}
+            animationType="slide"
+            onRequestClose={() => setShowImageModal(false)}
+          >
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>
+                Product Images ({uploadedUrls.length})
+              </Text>
+              {selectedProduct && (
+                <Text style={styles.productIdText}>Product ID: {selectedProduct}</Text>
+              )}
+
+              <ScrollView contentContainerStyle={styles.imageGrid}>
+                {uploadedUrls.map((image) => (
+                  <Image
+                    key={image.id}
+                    source={{ uri: image.img_url }}
+                    style={styles.thumbnail}
+                  />
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+                <Text style={styles.buttonText}>Select New Image</Text>
+              </TouchableOpacity>
+
+              {selectedImage && (
+                <>
+                  <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={handleUpload}
+                    disabled={uploading}
+                  >
+                    <Text style={styles.buttonText}>
+                      {uploading ? 'Uploading...' : 'Upload Image'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowImageModal(false);
+                  setUploadedUrls([]);
+                  setSelectedProduct(null);
+                }}
+              >
+                <Text style={styles.buttonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
         </View>
       );
     }
@@ -402,45 +496,7 @@ export default function VendorDashboard() {
     return (
       <View style={styles.welcomeContainer}>
         <Text style={styles.welcomeTitle}>Welcome, {vendorData?.full_name}</Text>
-        <Text style={styles.welcomeText}>Manage your vendor account and orders here</Text>
-
-        {products.length > 0 && (
-          <View style={styles.productSection}>
-            <Text style={styles.sectionHeader}>Your Products ({products.length})</Text>
-            {products.map((product, index) => (
-              <View key={index} style={styles.productCard}>
-                <Text style={styles.productHeader}>Product Id : {product.id}</Text>
-                <Text style={styles.productHeader}>{product.name}</Text>
-                <View style={styles.categoryTag}>
-                  <Text style={styles.categoryText}>{product.category}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Price:</Text>
-                  <Text style={[styles.infoValue, styles.priceText]}>₹{product.price}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Quantity:</Text>
-                  <Text style={[styles.infoValue, styles.quantityText]}>{product.quantity}</Text>
-                </View>
-                {product.description && (
-                  <View style={{ borderTopWidth: 1, borderTopColor: '#ecf0f1', marginTop: 10, paddingTop: 10 }}>
-                    <Text style={styles.descriptionText}>{product.description}</Text>
-                  </View>
-                )}
-                <TouchableOpacity
-                  style={styles.demoButton}
-                  onPress={() => {
-                    // Pass the actual product ID here
-                    setSelectedProduct(product.id);
-                    setShowImageModal(true);
-                  }}
-                >
-                  <Text style={styles.buttonText}>Upload Images</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
+        <Text style={styles.welcomeText}>Manage your vendor account - Products & Orders here</Text>
 
         {orders.length > 0 ? (
           <View style={styles.ordersSection}>
@@ -513,62 +569,6 @@ export default function VendorDashboard() {
             <Text style={styles.emptyOrdersText}>No orders right now</Text>
           </View>
         )}
-
-        <Modal
-          visible={showImageModal}
-          animationType="slide"
-          onRequestClose={() => setShowImageModal(false)}
-        >
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>
-              Product Images ({uploadedUrls.length})
-            </Text>
-            {selectedProduct && (
-              <Text style={styles.productIdText}>Product ID: {selectedProduct}</Text>
-            )}
-
-            <ScrollView contentContainerStyle={styles.imageGrid}>
-              {uploadedUrls.map((image) => (
-                <Image
-                  key={image.id}
-                  source={{ uri: image.img_url }}
-                  style={styles.thumbnail}
-                />
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-              <Text style={styles.buttonText}>Select New Image</Text>
-            </TouchableOpacity>
-
-            {selectedImage && (
-              <>
-                <Image source={{ uri: selectedImage }} style={styles.previewImage} />
-                <TouchableOpacity
-                  style={styles.uploadButton}
-                  onPress={handleUpload}
-                  disabled={uploading}
-                >
-                  <Text style={styles.buttonText}>
-                    {uploading ? 'Uploading...' : 'Upload Image'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setShowImageModal(false);
-                setUploadedUrls([]);
-                setSelectedProduct(null);
-              }}
-            >
-              <Text style={styles.buttonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-
       </View>
     );
   };
@@ -631,7 +631,7 @@ export default function VendorDashboard() {
                   toggleSidebar();
                 }}
               >
-                <Text style={styles.navButtonText}>Add Product</Text>
+                <Text style={styles.navButtonText}>Product</Text>
               </TouchableOpacity>
 
             </View>
