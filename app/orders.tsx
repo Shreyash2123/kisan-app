@@ -21,7 +21,10 @@ export default function OrdersScreen() {
         .from('orders')
         .select(`
           *,
-          products:product_id (*)
+          products:product_id (
+            *,
+            product_img (img_url)
+          )
         `)
         .eq('user_email', user.email)
         .order('created_at', { ascending: false });
@@ -53,7 +56,7 @@ export default function OrdersScreen() {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.title}>My Orders</Text>
-        <View style={{ width: 24 }} /> 
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -79,7 +82,11 @@ export default function OrdersScreen() {
 
               <View style={styles.productContainer}>
                 <Image
-                  source={order.products?.image ? { uri: order.products.image } : require('../assets/placeholder.jpg')}
+                  source={
+                    order.products?.product_img?.length > 0
+                      ? { uri: order.products.product_img[0].img_url }
+                      : require('../assets/placeholder.jpg')
+                  }
                   style={styles.productImage}
                 />
                 <View style={styles.productDetails}>

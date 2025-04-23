@@ -70,7 +70,7 @@ export default function VendorRegister() {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Registration successful!');
+      Alert.alert('Success', 'Registration successful! Please Login');
       router.replace('/vendor/vendor-login');
     } catch (error) {
       let errorMessage = 'Registration failed';

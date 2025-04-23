@@ -38,16 +38,18 @@ export default function Home() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentData, setPaymentData] = useState({
+    paymentMethod: '', // 'card' or 'cod'
+    cardType: '',
     cardNumber: '',
     expiry: '',
     cvv: '',
-    cardType: '',
   });
   const [orderId, setOrderId] = useState('');
 
   const handlePayNow = async () => {
     // Simple validation
-    if (!paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv || !paymentData.cardType) {
+    if (paymentData.paymentMethod === 'card' &&
+      (!paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv || !paymentData.cardType)) {
       alert('Please fill all payment details');
       return;
     }
@@ -60,7 +62,7 @@ export default function Home() {
       quantity,
       total: selectedProduct?.price * quantity,
       shipping_info: formData,
-      payment_method: paymentData.cardType
+      payment_method: paymentData.paymentMethod === 'cod' ? 'COD' : paymentData.cardType
     };
 
     // Insert order into database
@@ -556,62 +558,114 @@ export default function Home() {
               <Ionicons name="close" size={24} color="#7f8c8d" />
             </TouchableOpacity>
 
-            <Text style={styles.paymentTitle}>Payment Details</Text>
+            <Text style={styles.paymentTitle}>Select Payment Method</Text>
 
-            <View style={styles.cardIconsContainer}>
+            <View style={styles.paymentOptionsContainer}>
+              {/* Visa */}
               <TouchableOpacity
-                style={[styles.cardButton, paymentData.cardType === 'visa' && styles.selectedCard]}
-                onPress={() => setPaymentData({ ...paymentData, cardType: 'visa' })}
+                style={[
+                  styles.paymentMethodButton,
+                  paymentData.paymentMethod === 'card' &&
+                  paymentData.cardType === 'visa' &&
+                  styles.selectedPaymentMethod
+                ]}
+                onPress={() => setPaymentData({
+                  ...paymentData,
+                  paymentMethod: 'card',
+                  cardType: 'visa'
+                })}
               >
                 <Image
                   source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png' }}
                   style={styles.cardImage}
                   resizeMode="contain"
                 />
+                <Text style={styles.paymentMethodText}>Visa</Text>
               </TouchableOpacity>
 
+              {/* Mastercard */}
               <TouchableOpacity
-                style={[styles.cardButton, paymentData.cardType === 'mastercard' && styles.selectedCard]}
-                onPress={() => setPaymentData({ ...paymentData, cardType: 'mastercard' })}
+                style={[
+                  styles.paymentMethodButton,
+                  paymentData.paymentMethod === 'card' &&
+                  paymentData.cardType === 'mastercard' &&
+                  styles.selectedPaymentMethod
+                ]}
+                onPress={() => setPaymentData({
+                  ...paymentData,
+                  paymentMethod: 'card',
+                  cardType: 'mastercard'
+                })}
               >
                 <Image
                   source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/2560px-Mastercard_2019_logo.svg.png' }}
                   style={styles.cardImage}
                   resizeMode="contain"
                 />
+                <Text style={styles.paymentMethodText}>Mastercard</Text>
+              </TouchableOpacity>
+
+              {/* COD */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentMethodButton,
+                  paymentData.paymentMethod === 'cod' &&
+                  styles.selectedPaymentMethod
+                ]}
+                onPress={() => setPaymentData({
+                  ...paymentData,
+                  paymentMethod: 'cod',
+                  cardType: ''
+                })}
+              >
+                <Ionicons name="cash" size={32} color="#2c3e50" />
+                <Text style={styles.paymentMethodText}>COD</Text>
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Card Number"
-              keyboardType="numeric"
-              maxLength={19}
-              value={paymentData.cardNumber.replace(/\W/gi, '').replace(/(.{4})/g, '$1 ')}
-              onChangeText={text => setPaymentData({ ...paymentData, cardNumber: text })}
-            />
+            {/* Card Details Form */}
+            {paymentData.paymentMethod === 'card' && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Card Number"
+                  keyboardType="numeric"
+                  maxLength={19}
+                  value={paymentData.cardNumber.replace(/\W/gi, '').replace(/(.{4})/g, '$1 ')}
+                  onChangeText={text => setPaymentData({ ...paymentData, cardNumber: text })}
+                />
 
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="MM/YY"
-                maxLength={5}
-                value={paymentData.expiry}
-                onChangeText={text => setPaymentData({ ...paymentData, expiry: text })}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="CVV"
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-                value={paymentData.cvv}
-                onChangeText={text => setPaymentData({ ...paymentData, cvv: text })}
-              />
-            </View>
+                <View style={styles.row}>
+                  <TextInput
+                    style={[styles.input, styles.halfInput]}
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    value={paymentData.expiry}
+                    onChangeText={text => setPaymentData({ ...paymentData, expiry: text })}
+                  />
+                  <TextInput
+                    style={[styles.input, styles.halfInput]}
+                    placeholder="CVV"
+                    keyboardType="numeric"
+                    maxLength={4}
+                    secureTextEntry
+                    value={paymentData.cvv}
+                    onChangeText={text => setPaymentData({ ...paymentData, cvv: text })}
+                  />
+                </View>
+              </>
+            )}
 
-            <TouchableOpacity style={styles.payNowButton} onPress={handlePayNow}>
-              <Text style={styles.payNowButtonText}>Pay ₹{(selectedProduct?.price * quantity).toFixed(2)}</Text>
+            <TouchableOpacity
+              style={styles.payNowButton}
+              onPress={handlePayNow}
+            >
+              <Text style={styles.payNowButtonText}>
+                {paymentData.paymentMethod === 'cod' ?
+                  `Confirm COD Order` :
+                  `Pay ₹${(selectedProduct?.price * quantity).toFixed(2)}`
+                }
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -622,16 +676,27 @@ export default function Home() {
         <View style={styles.modalBackdrop}>
           <View style={styles.receiptModal}>
             <View style={styles.receiptHeader}>
-              <Ionicons name="checkmark-circle" size={60} color="#2ecc71" />
-              <Text style={styles.receiptTitle}>Payment Successful!</Text>
+              <Ionicons
+                name="checkmark-circle"
+                size={60}
+                color="#2ecc71"
+              />
+              <Text style={styles.receiptTitle}>Order Confirmed!</Text>
             </View>
 
             <View style={styles.receiptDetails}>
               <Text style={styles.receiptText}>Order ID: #{orderId}</Text>
               <Text style={styles.receiptText}>Product: {selectedProduct?.name}</Text>
               <Text style={styles.receiptText}>Quantity: {quantity}</Text>
-              <Text style={styles.receiptText}>Total: ₹{(selectedProduct?.price * quantity).toFixed(2)}</Text>
-              <Text style={styles.receiptText}>Payment Method: {paymentData.cardType.toUpperCase()}</Text>
+              <Text style={styles.receiptText}>
+                Total: ₹{(selectedProduct?.price * quantity).toFixed(2)}
+              </Text>
+              <Text style={styles.receiptText}>
+                Payment Method: {paymentData.paymentMethod === 'cod' ?
+                  'COD (Cash on Delivery)' :
+                  paymentData.cardType.toUpperCase()
+                }
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -661,6 +726,57 @@ export default function Home() {
 
 // Keep the same styles from previous implementation
 const styles = StyleSheet.create({
+  paymentOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8, // Reduced gap
+    marginBottom: 20,
+    paddingHorizontal: 10, // Added horizontal padding
+  },
+  paymentMethodButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12, // Reduced padding
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
+    minWidth: 0, // Important for flex to work properly
+    marginHorizontal: 4, // Added small horizontal margin
+  },
+  cardImage: {
+    width: 50, // Reduced image size
+    height: 30,
+  },
+  paymentMethodText: {
+    marginTop: 6,
+    fontSize: 11, // Slightly smaller text
+    fontWeight: '500',
+    color: '#2c3e50',
+  },
+  selectedPaymentMethod: {
+    borderColor: '#2ecc71',
+    backgroundColor: '#f0fdf4',
+  },
+  codButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
+    marginTop: 10,
+    gap: 10,
+  },
+  selectedCod: {
+    borderColor: '#2ecc71',
+    backgroundColor: '#f0fdf4',
+  },
+  codButtonText: {
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
   cardButton: {
     padding: 12,
     borderRadius: 8,
@@ -680,10 +796,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-  },
-  cardImage: {
-    width: 80,
-    height: 40,
   },
   paymentModal: {
     backgroundColor: 'white',
