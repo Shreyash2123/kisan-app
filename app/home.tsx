@@ -45,6 +45,7 @@ export default function Home() {
     cvv: '',
   });
   const [orderId, setOrderId] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const handlePayNow = async () => {
     // Simple validation
@@ -84,47 +85,52 @@ export default function Home() {
   };
 
   // Add this useEffect for fetching products
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const { data: productsData, error } = await supabase
+        .from('products')
+        .select('*');
+
+      if (error) throw error;
+
+      const uniqueCategories = Array.from(
+        new Set(productsData.map(product => product.category))
+      );
+      setCategories(['All', ...uniqueCategories]);
+
+      const productsWithImages = await Promise.all(
+        productsData.map(async (product) => {
+          const { data: imagesData } = await supabase
+            .from('product_img')
+            .select('img_url')
+            .eq('product_id', product.id)
+            .limit(1);
+
+          return {
+            ...product,
+            image: imagesData?.[0]?.img_url || require('../assets/placeholder.jpg')
+          };
+        })
+      );
+
+      setProducts(productsWithImages);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoadingProducts(false);
+      setRefreshing(false);
+    }
+  };
+  // Update the useEffect to use fetchProducts
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const { data: productsData, error } = await supabase
-          .from('products')
-          .select('*');
-
-        if (error) throw error;
-
-        // Get unique categories
-        const uniqueCategories = Array.from(
-          new Set(productsData.map(product => product.category))
-        );
-        setCategories(['All', ...uniqueCategories]);
-
-        // Fetch images for each product
-        const productsWithImages = await Promise.all(
-          productsData.map(async (product) => {
-            const { data: imagesData } = await supabase
-              .from('product_img')
-              .select('img_url')
-              .eq('product_id', product.id)
-              .limit(1);
-
-            return {
-              ...product,
-              image: imagesData?.[0]?.img_url || require('../assets/placeholder.jpg')
-            };
-          })
-        );
-
-        setProducts(productsWithImages);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
     fetchProducts();
   }, []);
+  // Add refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchProducts();
+  };
 
   // Add this function to fetch all images when opening modal
   const fetchProductDetails = async (productId: string) => {
@@ -367,8 +373,20 @@ export default function Home() {
 
           {/* Products Section */}
           <View style={styles.productsContainer}>
-            <Text style={styles.sectionTitle}>Featured Products</Text>
-
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Products</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#2ecc71" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#2ecc71" />
+                )}
+              </TouchableOpacity>
+            </View>
             {loadingProducts ? (
               <ActivityIndicator size="large" color="#2ecc71" />
             ) : products.length > 0 ? (
@@ -726,6 +744,18 @@ export default function Home() {
 
 // Keep the same styles from previous implementation
 const styles = StyleSheet.create({
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  refreshButton: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+    marginLeft: 10,
+  },
   paymentOptionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
