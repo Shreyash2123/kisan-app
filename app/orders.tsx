@@ -9,35 +9,38 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          products:product_id (
-            *,
-            product_img (img_url)
-          )
-        `)
-        .eq('user_email', user.email)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching orders:', error);
-        return;
-      }
-
-      setOrders(data || []);
+  const fetchOrders = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace('/');
       setLoading(false);
-    };
+      return;
+    }
 
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        products:product_id (
+          *,
+          product_img (img_url)
+        )
+      `)
+      .eq('user_email', user.email)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      setLoading(false);
+      return;
+    }
+
+    setOrders(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchOrders();
   }, []);
 
@@ -56,7 +59,9 @@ export default function OrdersScreen() {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.title}>My Orders</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={fetchOrders}>
+          <Ionicons name="refresh" size={24} color="#2c3e50" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>

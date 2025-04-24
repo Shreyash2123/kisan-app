@@ -35,25 +35,31 @@ export default function VendorDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
 
   // Add this useEffect for fetching orders
-  useEffect(() => {
-    const fetchOrders = async () => {
+  const fetchOrders = async () => {
+    try {
       if (vendorData?.id) {
         const { data, error } = await supabase
           .from('orders')
           .select(`
-          *,
-          products:product_id (*)
-        `)
+            *,
+            products:product_id (*)
+          `)
           .eq('vendor_id', vendorData.id)
           .order('created_at', { ascending: false });
 
         if (data) setOrders(data);
         if (error) console.error('Error fetching orders:', error);
       }
-    };
+    } catch (error) {
+      console.error('Fetch orders error:', error);
+    }
+  };
 
+  // Update your orders useEffect to use this function
+  useEffect(() => {
     fetchOrders();
   }, [vendorData]);
+
 
   // Add this function to handle status updates
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -500,7 +506,17 @@ export default function VendorDashboard() {
 
         {orders.length > 0 ? (
           <View style={styles.ordersSection}>
-            <Text style={styles.sectionHeader}>Recent Orders ({orders.length})</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>Recent Orders ({orders.length})</Text>
+              <TouchableOpacity onPress={fetchOrders} disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#2c3e50" />
+                ) : (
+                  <Ionicons name="refresh" size={24} color="#2c3e50" />
+                )}
+              </TouchableOpacity>
+            </View>
+
             {orders.map(order => (
               <View key={order.id} style={styles.orderCard}>
                 <View style={styles.orderHeader}>
@@ -658,6 +674,12 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   ordersSection: {
     marginTop: 20,
     width: '100%',
