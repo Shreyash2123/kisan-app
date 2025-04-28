@@ -34,6 +34,60 @@ export default function VendorDashboard() {
 
   const [orders, setOrders] = useState<any[]>([]);
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [editProductForm, setEditProductForm] = useState({
+    name: '',
+    category: '',
+    quantity: '',
+    price: '',
+    description: ''
+  });
+
+  const handleUpdateProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          ...editProductForm,
+          quantity: Number(editProductForm.quantity),
+          price: Number(editProductForm.price)
+        })
+        .eq('id', selectedProduct);
+
+      if (error) throw error;
+
+      setProducts(prev => prev.map(p =>
+        p.id === selectedProduct ? { ...p, ...editProductForm } : p
+      ));
+      setShowEditModal(false);
+      Alert.alert('Success', 'Product updated successfully');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Update failed');
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productToDelete);
+
+      if (error) throw error;
+
+      setProducts(prev => prev.filter(p => p.id !== productToDelete));
+      setProductToDelete(null);
+      Alert.alert('Success', 'Product deleted successfully');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Delete failed');
+    }
+  };
+
   // Add this useEffect for fetching orders
   const fetchOrders = async () => {
     try {
@@ -436,6 +490,29 @@ export default function VendorDashboard() {
                   >
                     <Text style={styles.buttonText}>Upload Images</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => {
+                      setEditProductForm({
+                        name: product.name,
+                        category: product.category,
+                        quantity: product.quantity.toString(),
+                        price: product.price.toString(),
+                        description: product.description || ''
+                      });
+                      setSelectedProduct(product.id);
+                      setShowEditModal(true);
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => setProductToDelete(product.id)}
+                  >
+                    <Text style={styles.buttonText}>Delete</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
@@ -495,6 +572,74 @@ export default function VendorDashboard() {
               </TouchableOpacity>
             </View>
           </Modal>
+
+          <Modal visible={showEditModal} animationType="slide">
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Edit Product</Text>
+
+              <TextInput
+                placeholder="Product Name"
+                value={editProductForm.name}
+                onChangeText={text => setEditProductForm(p => ({ ...p, name: text }))}
+                style={styles.input}
+              />
+
+              <TextInput
+                placeholder="Product Price"
+                value={editProductForm.price}
+                onChangeText={text => setEditProductForm(p => ({ ...p, price: text }))}
+                style={styles.input}
+              />
+
+              <TextInput
+                placeholder="Product Quantity"
+                value={editProductForm.quantity}
+                onChangeText={text => setEditProductForm(p => ({ ...p, quantity: text }))}
+                style={styles.input}
+              />
+
+              {/* Add other input fields similarly */}
+
+              <TouchableOpacity
+                style={styles.updateButton}
+                onPress={handleUpdateProduct}
+              >
+                <Text style={styles.buttonText}>Update Product</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </Modal>
+
+          <Modal visible={!!productToDelete} transparent>
+            <View style={styles.confirmationModal}>
+              <View style={styles.confirmationContent}>
+                <Text style={styles.confirmationText}>
+                  Are you sure you want to delete this product?
+                </Text>
+                <View style={styles.confirmationButtons}>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={handleDeleteProduct}
+                  >
+                    <Text style={styles.buttonText}>Delete</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setProductToDelete(null)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
         </View>
       );
     }
@@ -618,7 +763,7 @@ export default function VendorDashboard() {
               <Text style={styles.sidebarTitle}>Vendor Menu</Text>
 
               <TouchableOpacity
-                style={[styles.navButton, showProfile && styles.activeNavButton]}
+                style={[styles.navButton]}
                 onPress={() => {
                   setShowProfile(false);
                   setShowProductForm(false);
@@ -666,6 +811,7 @@ export default function VendorDashboard() {
   );
 }
 
+
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.infoRow}>
     <Text style={styles.infoLabel}>{label}:</Text>
@@ -674,6 +820,62 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 const styles = StyleSheet.create({
+  productActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  editButton: {
+    alignItems: 'center',
+    margin: 10,
+    backgroundColor: '#f1c40f',
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    margin: 10,
+    backgroundColor: '#e74c3c',
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+  },
+  confirmationModal: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  confirmationContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+  },
+  confirmationText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  confirmButton: {
+    backgroundColor: '#e74c3c',
+    padding: 10,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  updateButton: {
+    backgroundColor: '#2ecc71',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
